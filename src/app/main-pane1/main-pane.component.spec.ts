@@ -22,4 +22,12 @@ describe('MainPaneComponent', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('should be there a button element for sending messages', () => {
+    const fixture = TestBed.createComponent(MainPaneComponent);
+    fixture.detectChanges();
+    const compiled = fixture.debugElement.nativeElement;
+    expect(compiled.querySelector('button').textContent).toContain('Send');
+  });
+  
 });
