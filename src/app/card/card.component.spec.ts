@@ -56,12 +56,16 @@ describe('Form testing', () => {
         });
     }));
 
+    it('should has name save', async (() =>{
+        const compiled = fixture.debugElement.nativeElement;
+        expect(compiled.querySelector('button').textContent).toContain('Save');
+    }));
+
     it('should call the submit method', async(() => {
         fixture.detectChanges();
         spyOn(comp,'onSubmit');
         el = fixture.debugElement.query(By.css('button')).nativeElement;
         el.click();
         expect(comp.onSubmit).toHaveBeenCalledTimes(0);
-
-    }))
+    }));
 })

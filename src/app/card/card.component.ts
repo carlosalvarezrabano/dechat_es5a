@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { NgForm } from '@angular/forms';
+import { NgForm, FormGroup } from '@angular/forms';
 import { SolidProfile } from '../models/solid-profile.model';
 import { RdfService } from '../services/rdf.service';
 import { AuthService } from '../services/solid.auth.service';
@@ -16,7 +16,6 @@ export class CardComponent implements OnInit  {
   profile: SolidProfile;
   profileImage: string;
   loadingProfile: Boolean;
-
   @ViewChild('f') cardForm: NgForm;
 
   constructor(private rdf: RdfService,
