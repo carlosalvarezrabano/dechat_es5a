@@ -2,6 +2,6 @@
   <p>Your webId is {{ session.webId }}</p>
   <ul>
     <li><a [routerLink]="['/card']">Profile</a></li>
-    <li><a (click)="onSignOut()">Signout</a></li>
+    <li><a id = "signout" (click)="onSignOut()">Signout</a></li>
   </ul>
 </div>
