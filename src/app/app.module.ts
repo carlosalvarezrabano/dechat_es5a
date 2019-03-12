@@ -48,7 +48,7 @@ const routes: Routes = [
   {
     path: 'register',
     component: RegisterComponent
-  }
+  },
 ];
 
 
@@ -66,6 +66,7 @@ const routes: Routes = [
   imports: [
     BrowserModule,
     FormsModule,
+    RouterModule.forRoot(routes),
     NgSelectModule,
     ToastrModule.forRoot(),
     BrowserAnimationsModule // required for toastr
