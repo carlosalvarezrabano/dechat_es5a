@@ -16,9 +16,6 @@ import {LoginComponent} from './login/login.component';
 import { CardComponent } from './card/card.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { RegisterComponent } from './register/register.component';
-import { NavbarComponent } from './fragments/navbar/navbar.component';
-import { FooterComponent } from './fragments/footer/footer.component';
-import { HeaderComponent } from './fragments/header/header.component';
 
 // Services
 import { AuthService } from './services/solid.auth.service';
@@ -64,9 +61,6 @@ const routes: Routes = [
     DashboardComponent,
     CardComponent,
     RegisterComponent,
-    NavbarComponent,
-    FooterComponent,
-    HeaderComponent,
     MainPaneComponent,
   ],
   imports: [
