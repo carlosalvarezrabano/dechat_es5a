@@ -89,7 +89,7 @@
               "src/favicon.ico",
               "src/assets"
             ]
-          }
+                    }
         },
         "lint": {
           "builder": "@angular-devkit/build-angular:tslint",

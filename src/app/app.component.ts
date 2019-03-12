@@ -9,4 +9,5 @@ import { popupLogin } from 'solid-auth-client/dist-lib/solid-auth-client.bundle.
 })
 export class AppComponent {
   title = 'app';
+  
 }
