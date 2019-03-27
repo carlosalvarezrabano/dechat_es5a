@@ -46,8 +46,8 @@ export class ChatComponent implements OnInit {
         
         this.fC=new filesCreator(this.rdf.session.webId,this.ruta_seleccionada,this.fileClient,this.messages);
         const name = this.fC.getUserByUrl(this.ruta_seleccionada);
-        this.fC.createNewFolder('dechat5a', '/public/');
-        this.fC.createNewFolder(name, '/public/dechat5a/');
+        this.fC.install();
+        this.fC.newSingularChat();
         this.fC.synchronizeMessages();
         this.messages= this.fC.messages;
         setInterval(() => {

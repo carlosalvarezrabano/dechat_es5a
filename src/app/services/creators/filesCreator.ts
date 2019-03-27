@@ -6,14 +6,14 @@ import {messagesSorter} from "../sorters/messagesSorter"
 export class filesCreator {
 
     sessionWebId: string;
-    recipientWebId: string;
+    recipientWebId: string[];
     fileClient: any;
     messages:message[];
 
      /*
      * Constuctor
      */
-    constructor(userWebId:string, recipientWebId:string,fileClientP:any, messages: message[]) {
+    constructor(userWebId:string, recipientWebId:string[],fileClientP:any, messages: message[]) {
         this.sessionWebId=userWebId;
         this.recipientWebId=recipientWebId;
         this.fileClient=fileClientP;
@@ -24,16 +24,55 @@ export class filesCreator {
     /*
      * Method that creates the folder using the solid-file-client lib
      */
-    public buildFolder() {
-        this.fileClient.readFolder(this.sessionWebId).then(folder => {
+  public buildFolder(path: string) {
+        this.fileClient.readFolder(path).then(folder => {
             console.log(`Read ${folder.name}, it has ${folder.files.length} files.`);
         }, err => {
             //Le paso la URL de la carpeta y se crea en el pod. SI ya esta creada no se si la sustituye o no hace nada
-            this.fileClient.createFolder(this.sessionWebId).then(success => {
-                console.log(`Created folder ${this.sessionWebId}.`);
+            this.fileClient.createFolder(path).then(success => {
+                console.log(`Created folder ${path}.`);
             }, err1 => console.log(err1));
  
         });
+    }
+          
+	/*
+	 * Install the program in /dechat5a/
+	 * With the acl only for the owner
+	 */
+	public install() {    
+        let stringToChange = '/profile/card#me';
+        let ruta=this.sessionWebId;
+        let path = path.replace(stringToChange, ruta);   
+        this.buildFolder(path);
+        createOwnerAcl(path,this.sessionWebId);
+    }
+
+ 	/*
+	 * creates a folder for the chat insude /dechat5a/
+	 * With the acl for the reader
+	 */
+	public newSingularChat() {    
+        let stringToChange = '/profile/card#me';
+        let ruta=this.sessionWebId;
+        let path = path.replace(stringToChange, ruta);   
+        let gruta= path+this.recipientWebId[0]+'\'
+        this.buildFolder(gruta);
+        createReadForOneAcl(gruta,this.sessionWebId,this.recipientWebId[0]);
+    }
+    
+    /*
+	 * creates a folder for the chat insude /dechat5a/
+	 * With the acl for the readers
+	 * @param name:string the name of the group chat
+	 */
+	public newGrupalChat(name:string) {    
+        let stringToChange = '/profile/card#me';
+        let ruta=this.sessionWebId;
+        let path = path.replace(stringToChange, ruta);
+        let gruta=path+name+'\'; 
+        this.buildFolder(gruta);
+        createReadForManyAcl(gruta,this.sessionWebId,this.recipientWebId);
     }
 
     /*
@@ -48,7 +87,7 @@ export class filesCreator {
         let contenido = '@prefix  acl:  <http://www.w3.org/ns/auth/acl#>  .\n'+
             '<#owner>\n'+
             'a             acl:Authorization;\n'+
-            'acl:agent     <'+this.sessionWebId+'>;\n'+
+            'acl:agent     <'+fixProfile(this.sessionWebId)+'>;\n'+
             'acl:accessTo  <'+path+'>;\n'+
             'acl:defaultForNew <./>;'+
             'acl:mode\n      acl:Read,\n'+
@@ -74,7 +113,7 @@ export class filesCreator {
         let contenido ='@prefix  acl:  <http://www.w3.org/ns/auth/acl#>  .'+
             '<#owner>\n'+
             'a             acl:Authorization;\n'+
-            'acl:agent     <'+owner+'>;\n'+
+            'acl:agent     <'+fixProfile(owner)+'>;\n'+
             'acl:accessTo  <'+path+'>;\n'+
             'acl:defaultForNew <./>;'+
             'acl:mode\n      acl:Read,\n'+
@@ -83,7 +122,7 @@ export class filesCreator {
 
             '<#reader>\n'+
             'a             acl:Authorization;\n'+
-            'acl:agent     <'+reader+'>;\n'+
+            'acl:agent     <'+fixProfile(reader)+'>;\n'+
             'acl:accessTo  <'+path+'>;\n'+
             'acl:defaultForNew <./>;\n'+
             'acl:mode\n      acl:Read.'
@@ -96,7 +135,7 @@ export class filesCreator {
     /*
      * Creates a .acl for the file in the path.
      * This file made for the owner and many readers
-     * Used in p2p chats
+     * Used in group chats
      * path must have the / at the end of the folder
      * @param path:string the file for the .acl
      * @param owner:string the /profile/card#me of the user owner of the folder
@@ -107,7 +146,7 @@ export class filesCreator {
         let contenido ='@prefix  acl:  <http://www.w3.org/ns/auth/acl#>  .\n'+
             '<#owner>\n'+
             'a             acl:Authorization;\n'+
-            'acl:agent     <'+owner+'>\n'+
+            'acl:agent     <'+fixProfile(owner)+'>\n'+
             'acl:accessTo  <'+path+'>\n'+
             'acl:defaultForNew <./>;\n'+
             'acl:mode      acl:Read,\n'+
@@ -122,38 +161,38 @@ export class filesCreator {
 
         readers.forEach(function (e, idx, array) {
             if (idx === array.length - 1){
-                contenido = contenido + 'acl:agent  <'+e+'>.'
+                contenido = contenido + 'acl:agent  <'+fixProfile(e)+'>.'
             } else {
-                contenido = contenido + 'acl:agent  <'+e+'>;\n'
+                contenido = contenido + 'acl:agent  <'+fixProfile(e)+'>;\n'
             }
         })
         this.fileClient.updateFile(file,contenido).then(success => {
             console.log(`Created acl many readers ${file}.`)
         }, err => console.log(err));
     }
+
     /*
-     * Returns a string with all the readers of a acl, divided by '|'
-     * @param path:string the file or folder to look the readers
-     * In TODO
+     * Add a url of a user the /profile/card#me.
+     * If it has already it, it returns the same url
+     * @param url:string the user
+     * @return string with the url correct
      */
-    public getReaders(path:string): string{
-        let file;
-        let list;
-        this.fileClient.readFile(path+'.acl').then(  body => {
-            file= body;
-            console.log(`File content is : ${body}.`);
-        }, err => console.log(err) );
-
-
-        return  list;
+    private fixProfile(url: string) {
+        let r = url;
+		var n =r.includes('/profile/card#me');
+		if(n){
+			return r;
+		}else{
+			return r+'/profile/card#me';
+		}
     }
-
-        /*
-     * Create a new folder. The specific route would be /public/dechat5a/ + the name of the partner
+  
+    /*
+     * Create a new folder. The specific route would be /dechat5a/ + the name of the partner
      */
     public createNewFolder(name: string, ruta: string) {
         //Para crear la carpeta necesito una ruta que incluya el nombre de la misma.
-        //Obtengo el ID del usuario y sustituyo  lo irrelevante por la ruta de public/NombreCarpeta
+        //Obtengo el ID del usuario y sustituyo  lo irrelevante por la ruta de NombreCarpeta
         let stringToChange = '/profile/card#me';
         let path = ruta + name;
         let solidId=this.sessionWebId;
@@ -197,7 +236,7 @@ export class filesCreator {
 
         let messageToSend: message = { content: messageContent, date: new Date(Date.now()), sender: senderPerson, recipient: recipientPerson }
         let stringToChange = '/profile/card#me';
-        let path = '/public/dechat5a/' + user + '/Conversation.txt';
+        let path = '/dechat5a/' + user + '/Conversation.txt';
 
         senderId = senderId.replace(stringToChange, path);
 
@@ -276,11 +315,11 @@ export class filesCreator {
      */
     public async synchronizeMessages(){
 
-        var urlArray = this.recipientWebId.split("/");
-        let url= "https://" + urlArray[2] + "/public/dechat5a/" + this.getUserByUrl(this.sessionWebId) + "/Conversation.txt";
+        var urlArray = this.recipientWebId[0].split("/");
+        let url= "https://" + urlArray[2] + "/dechat5a/" + this.getUserByUrl(this.sessionWebId) + "/Conversation.txt";
 
         var urlArrayPropio = this.sessionWebId.split("/");
-        let urlPropia = "https://" + urlArrayPropio[2] + "/public/dechat5a/" + this.getUserByUrl(this.recipientWebId) + "/Conversation.txt";
+        let urlPropia = "https://" + urlArrayPropio[2] + "/dechat5a/" + this.getUserByUrl(this.recipientWebId[0]) + "/Conversation.txt";
         console.log("URL PROPIA: "+ urlPropia);
         console.log(url);
         let messageContent = await this.searchMessage(url);
