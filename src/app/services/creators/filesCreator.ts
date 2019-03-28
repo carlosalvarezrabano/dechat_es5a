@@ -5,74 +5,96 @@ import {messagesSorter} from "../sorters/messagesSorter"
 
 export class filesCreator {
 
+    //The url of the owner, like http://test.inrupt.com
     sessionWebId: string;
+    //A list of the readers of the chat, if is only one, is still the first
     recipientWebId: string[];
+    //The library to manage the pod files
     fileClient: any;
+    //A list of the messages of the chat
     messages:message[];
+    //The name of the folder
+    //Is used in the grupal chat, it is a singlar is just the recipientWebId[0] name
+    folderName:string;
+    //True if is a group chat; false if not
+    groupChat:boolean;
 
      /*
      * Constuctor
+     * @param userWebId:string the url of the user, like http://test.inrupt.com, without /profile/card#me
+     * @param recipientWebId:string[] a list of all the users that are in the chat
+     * @param fileClient:any the library to manage the files in the pod
+     * @param messages: message[] a list of messages on the chat
+     * @param name?:string a optional param, only used in group chat
      */
-    constructor(userWebId:string, recipientWebId:string[],fileClientP:any, messages: message[]) {
+    constructor(userWebId:string,recipientWebId:string[],fileClientP:any, messages: message[],name?:string) {
         this.sessionWebId=userWebId;
         this.recipientWebId=recipientWebId;
         this.fileClient=fileClientP;
         this.messages=messages;
-    }
-
-
-    /*
-     * Method that creates the folder using the solid-file-client lib
-     */
-  public buildFolder(path: string) {
-        this.fileClient.readFolder(path).then(folder => {
-            console.log(`Read ${folder.name}, it has ${folder.files.length} files.`);
-        }, err => {
-            //Le paso la URL de la carpeta y se crea en el pod. SI ya esta creada no se si la sustituye o no hace nada
-            this.fileClient.createFolder(path).then(success => {
-                console.log(`Created folder ${path}.`);
-            }, err1 => console.log(err1));
- 
-        });
+        if(name){
+            this.folderName=name;
+        }else{
+            this.folderName=this.getUserByUrl(this.recipientWebId[0])
+        }
+        this.groupChat=this.recipientWebId.length>1;
     }
           
 	/*
 	 * Install the program in /dechat5a/
 	 * With the acl only for the owner
 	 */
-	public install() {    
-        let stringToChange = '/profile/card#me';
-        let ruta=this.sessionWebId;
-        let path = path.replace(stringToChange, ruta);   
+	public install() {
+	    let path=this.sessionWebId+'/dechat5a/';
         this.buildFolder(path);
-        createOwnerAcl(path,this.sessionWebId);
+        this.createOwnerACL(path,this.sessionWebId);
+    }
+    /*
+     * Creates a folder with the acl
+     * It auto checks if is a singular chat or a group chat
+     */
+    public buildChatFolder(){
+	    if(this.groupChat){
+	        this.newGrupalChat();
+        }else{
+	        this.newSingularChat();
+        }
     }
 
  	/*
-	 * creates a folder for the chat insude /dechat5a/
-	 * With the acl for the reader
+	 * creates a folder for the chat inside /dechat5a/
+	 * With the acl for the only reader (recipientWebId[0])
 	 */
-	public newSingularChat() {    
-        let stringToChange = '/profile/card#me';
-        let ruta=this.sessionWebId;
-        let path = path.replace(stringToChange, ruta);   
-        let gruta= path+this.recipientWebId[0]+'\'
-        this.buildFolder(gruta);
-        createReadForOneAcl(gruta,this.sessionWebId,this.recipientWebId[0]);
+	private newSingularChat() {
+        let path=this.sessionWebId+'/dechat5a/'+this.folderName+'/';
+        this.buildFolder(path);
+        this.createReadForOneACL(path,this.sessionWebId,this.recipientWebId[0]);
     }
     
     /*
 	 * creates a folder for the chat insude /dechat5a/
-	 * With the acl for the readers
-	 * @param name:string the name of the group chat
+	 * With the acl for all the readers
 	 */
-	public newGrupalChat(name:string) {    
-        let stringToChange = '/profile/card#me';
-        let ruta=this.sessionWebId;
-        let path = path.replace(stringToChange, ruta);
-        let gruta=path+name+'\'; 
-        this.buildFolder(gruta);
-        createReadForManyAcl(gruta,this.sessionWebId,this.recipientWebId);
+	private newGrupalChat() {
+        let path = this.sessionWebId+'/dechat5a/'+this.folderName+'/';
+        this.buildFolder(path);
+        this.createReadForManyACL(path,this.sessionWebId,this.recipientWebId);
+    }
+
+    /*
+     * Method that creates the folder using the solid-file-client lib
+     * Warning: To see of it must create the folder, it reads the folder
+     * And i dont know what happend when it cant read a folder that already exist
+     * @param path:string the path of the folder to be created
+     */
+    private buildFolder(path: string) {
+        this.fileClient.readFolder(path).then(folder => {
+            console.log(`Read ${folder.name}, it has ${folder.files.length} files.`);
+        }, err => {
+            this.fileClient.createFolder(path).then(success => {
+                console.log(`Created folder ${path}.`);
+            }, err1 => console.log(err1));
+        });
     }
 
     /*
@@ -87,7 +109,7 @@ export class filesCreator {
         let contenido = '@prefix  acl:  <http://www.w3.org/ns/auth/acl#>  .\n'+
             '<#owner>\n'+
             'a             acl:Authorization;\n'+
-            'acl:agent     <'+fixProfile(this.sessionWebId)+'>;\n'+
+            'acl:agent     <'+this.fixProfile(this.sessionWebId)+'>;\n'+
             'acl:accessTo  <'+path+'>;\n'+
             'acl:defaultForNew <./>;'+
             'acl:mode\n      acl:Read,\n'+
@@ -108,12 +130,12 @@ export class filesCreator {
      * @param owner:string the /profile/card#me of the user owner of the folder
      * @param reader:string the /profile/card#me of the reader of the folder
      */
-    public createReadForOneACL(path: string, owner: string, reader:string) {
+    private createReadForOneACL(path: string, owner: string, reader:string) {
         let file = path + '.acl';
         let contenido ='@prefix  acl:  <http://www.w3.org/ns/auth/acl#>  .'+
             '<#owner>\n'+
             'a             acl:Authorization;\n'+
-            'acl:agent     <'+fixProfile(owner)+'>;\n'+
+            'acl:agent     <'+this.fixProfile(owner)+'>;\n'+
             'acl:accessTo  <'+path+'>;\n'+
             'acl:defaultForNew <./>;'+
             'acl:mode\n      acl:Read,\n'+
@@ -122,7 +144,7 @@ export class filesCreator {
 
             '<#reader>\n'+
             'a             acl:Authorization;\n'+
-            'acl:agent     <'+fixProfile(reader)+'>;\n'+
+            'acl:agent     <'+this.fixProfile(reader)+'>;\n'+
             'acl:accessTo  <'+path+'>;\n'+
             'acl:defaultForNew <./>;\n'+
             'acl:mode\n      acl:Read.'
@@ -141,12 +163,12 @@ export class filesCreator {
      * @param owner:string the /profile/card#me of the user owner of the folder
      * @param readers:string[] the /profile/card#me of the readers of the folder
      */
-    public createReadForManyACL(path: string, owner:string, readers: string[]) {
+    private createReadForManyACL(path: string, owner:string, readers: string[]) {
         let file = path + '.acl';
         let contenido ='@prefix  acl:  <http://www.w3.org/ns/auth/acl#>  .\n'+
             '<#owner>\n'+
             'a             acl:Authorization;\n'+
-            'acl:agent     <'+fixProfile(owner)+'>\n'+
+            'acl:agent     <'+this.fixProfile(owner)+'>\n'+
             'acl:accessTo  <'+path+'>\n'+
             'acl:defaultForNew <./>;\n'+
             'acl:mode      acl:Read,\n'+
@@ -161,9 +183,9 @@ export class filesCreator {
 
         readers.forEach(function (e, idx, array) {
             if (idx === array.length - 1){
-                contenido = contenido + 'acl:agent  <'+fixProfile(e)+'>.'
+                contenido = contenido + 'acl:agent  <'+this.fixProfile(e)+'>.'
             } else {
-                contenido = contenido + 'acl:agent  <'+fixProfile(e)+'>;\n'
+                contenido = contenido + 'acl:agent  <'+this.fixProfile(e)+'>;\n'
             }
         })
         this.fileClient.updateFile(file,contenido).then(success => {
@@ -179,39 +201,25 @@ export class filesCreator {
      */
     private fixProfile(url: string) {
         let r = url;
-		var n =r.includes('/profile/card#me');
-		if(n){
-			return r;
-		}else{
-			return r+'/profile/card#me';
-		}
-    }
-  
-    /*
-     * Create a new folder. The specific route would be /dechat5a/ + the name of the partner
-     */
-    public createNewFolder(name: string, ruta: string) {
-        //Para crear la carpeta necesito una ruta que incluya el nombre de la misma.
-        //Obtengo el ID del usuario y sustituyo  lo irrelevante por la ruta de NombreCarpeta
-        let stringToChange = '/profile/card#me';
-        let path = ruta + name;
-        let solidId=this.sessionWebId;
-        solidId = solidId.replace(stringToChange, path);
-        //Necesito logearme en el cliente para que me de permiso, sino me dara un error al intentar
-        //crear la carpeta. Como ya estoy en sesion no abre nada pero si se abre la consola se ve
-        // que se ejecuta correctamente.
-        this.buildFolder();
+        var n =r.includes('/profile/card#me');
+        if(n){
+            return r;
+        }else{
+            return r+'/profile/card#me';
+        }
     }
 
-        /*
+
+    /*
      * This method obtains the username based on his webID
+     * @param path:string the url of the folder to look for the name
+     * @return string the name of the user of the path
      */
-    public getUserByUrl(ruta: string): string {
+    public getUserByUrl(path: string): string {
         let sinhttp;
-        sinhttp = ruta.replace('https://', '');
+        sinhttp = path.replace('https://', '');
         const user = sinhttp.split('.')[0];
         return user;
-
     }
 
     
@@ -220,10 +228,10 @@ export class filesCreator {
      * It also creates (or updates if its already created) the conversation file.
      */
     public async createNewMessage() {
-
         //getting message from DOM
         let myUser= this.getUserByUrl(this.sessionWebId);
-        let user = this.getUserByUrl(this.recipientWebId);
+        //if there are in a group chat, that should be changed
+        let user = this.getUserByUrl(this.recipientWebId[0]);
         var messageContent = myUser + ': ' + ((document.getElementById("usermsg") as HTMLInputElement).value);
         (document.getElementById("usermsg") as HTMLInputElement).value="";
         console.log(messageContent);
@@ -232,13 +240,15 @@ export class filesCreator {
         let senderPerson: Friend = { webid: senderId };
 
         //Receiver WebId
-        let recipientPerson: Friend = { webid: this.recipientWebId }
+        let recipientPerson: Friend = { webid: this.recipientWebId[0] }
 
         let messageToSend: message = { content: messageContent, date: new Date(Date.now()), sender: senderPerson, recipient: recipientPerson }
-        let stringToChange = '/profile/card#me';
-        let path = '/dechat5a/' + user + '/Conversation.txt';
 
-        senderId = senderId.replace(stringToChange, path);
+        //All the user are without the /profile/card#me, so that wouldnt be necesary?
+        //let stringToChange = '/profile/card#me';
+        let path = '/dechat5a/' + user + '/Conversation.txt';
+        //senderId = senderId.replace(stringToChange, path);
+        senderId=path;
 
         let message = await this.readMessage(senderId);
 
@@ -267,6 +277,9 @@ export class filesCreator {
 
      /*
      * This methos updates the TTL file with the new content
+     * @param url the url of the file to look, like http://mypod.inrupt.com/dechat5a/myfriend/conversacion.ttl
+     * @param newContent the new content of the file
+     * @param contentType? the type of the file, used to force the type, like turtle/text
      */
     private updateTTL(url, newContent, contentType?) {
         if (contentType) {
@@ -281,8 +294,11 @@ export class filesCreator {
         }
     }
 
+    //TODO this should be one method instead of 2, or maybe one private
      /*
      * This methos searches for a message in an url
+     * @param url the url to look for messages like http://myfriend.inrupt.com/dechat5a/mypod/conversacion.ttl
+     * @return the message
      */
     public async readMessage(url) {
         var message = await this.searchMessage(url)
@@ -290,8 +306,11 @@ export class filesCreator {
         return message;
     }
 
+
      /*
      * This method search for a message in a pod
+     * @param url the url to look for messages like http://myfriend.inrupt.com/dechat5a/mypod/conversacion.ttl
+     * @return the message
      */
     public async searchMessage(url) {
         return await this.fileClient.readFile(url).then(body => {
@@ -301,7 +320,8 @@ export class filesCreator {
 
     }
 
-        /*
+
+    /*
      * This method creates a file in a folder using the solid-file-client lib
      */
     private buildFile(solidIdFolderUrl, content) {
