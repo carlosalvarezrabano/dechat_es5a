@@ -41,21 +41,17 @@ export class ChatComponent implements OnInit {
      * This method synchronize the conversation once the application is launched
      */
     ngOnInit() {
-
         this.fileClient = require('solid-file-client');
-        
-        this.fC=new filesCreator(this.rdf.session.webId,this.ruta_seleccionada,this.fileClient,this.messages);
+        this.fC=new filesCreator(this.rdf.session.webId,[this.ruta_seleccionada],this.fileClient,this.messages);
         const name = this.fC.getUserByUrl(this.ruta_seleccionada);
         this.fC.install();
-        this.fC.newSingularChat();
+        this.fC.buildChatFolder();
         this.fC.synchronizeMessages();
         this.messages= this.fC.messages;
         setInterval(() => {
             this.fC.synchronizeMessages();
             this.messages= this.fC.messages;
         }, 3000);
-
-
     }
 
     /*
@@ -123,7 +119,7 @@ export class ChatComponent implements OnInit {
 
         let messageToSend: message = { content: messageContent, date: new Date(Date.now()), sender: senderPerson, recipient: recipientPerson }
         let stringToChange = '/profile/card#me';
-        let path = '/public/dechat5a/' + user + '/Conversation.txt';
+        let path = '/dechat5a/' + user + '/Conversation.txt';
 
         senderId = senderId.replace(stringToChange, path);
 
@@ -232,10 +228,10 @@ export class ChatComponent implements OnInit {
      */
     private async hackingFriendFolder() {
         var urlArray = this.ruta_seleccionada.split("/");
-        let url = "https://" + urlArray[2] + "/public/dechat5a/" + this.getUserByUrl(this.rdf.session.webId) + "/Conversation.txt";
+        let url = "https://" + urlArray[2] + "/dechat5a/" + this.getUserByUrl(this.rdf.session.webId) + "/Conversation.txt";
 
         var urlArrayPropio = this.rdf.session.webId.split("/");
-        let urlPropia = "https://" + urlArrayPropio[2] + "/public/dechat5a/" + this.getUserByUrl(this.ruta_seleccionada) + "/Conversation.txt";
+        let urlPropia = "https://" + urlArrayPropio[2] + "/dechat5a/" + this.getUserByUrl(this.ruta_seleccionada) + "/Conversation.txt";
 
         let messageContent = await this.searchMessage(url);
         let messageArray = [];
@@ -248,14 +244,14 @@ export class ChatComponent implements OnInit {
      * This method creates the different message to show in the chat pane.
      */
     private insertHTMLMessages(){
-        let fC=new filesCreator(this.rdf.session.webId,this.ruta_seleccionada,this.fileClient,this.messages);
+        let fC=new filesCreator(this.rdf.session.webId,[this.ruta_seleccionada],this.fileClient,this.messages);
         this.messages.forEach(message => {
             "<p> " + fC.getUserByUrl(message.sender.webid) + ": " + message.content + "</p>";
         });
     }
 
     private callFilesCreatorMessage(){
-        let fC=new filesCreator(this.rdf.session.webId,this.ruta_seleccionada,this.fileClient,this.messages);
+        let fC=new filesCreator(this.rdf.session.webId,[this.ruta_seleccionada],this.fileClient,this.messages);
         fC.createNewMessage();
     }
 }
